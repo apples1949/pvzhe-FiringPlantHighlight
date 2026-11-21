@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """发射位高亮（FiringPlantHighlight）：编译 →（可选）打包 →（可选）装机。
 
-★本机踩坑（照抄 ShovelPosition / Glove / TimeStop 的结论）：
+★ 本机踩坑（照抄 Glove / TimeStop / ShovelPosition / PlantPlacementMarker 的结论）：
   `dotnet build` 可能卡死在 NuGet restore（无输出、DLL 不更新）。必须同时做三件事：
     1) 先 `taskkill /F /IM dotnet.exe` 清残留（否则旧进程锁 obj/ 卡死）；
     2) TEMP/TMP/DOTNET_CLI_HOME/NUGET_PACKAGES 全部重定向到工作区内；
     3) 显式 `-p:GodotRefDir=...`（csproj 里被清空的默认值会让引用解析不到，报一屏 CS0246）。
 
-用法：python build_and_install.py [--install]
-      不带 --install 只编译；带则继续打包 + 装机 + 清解包缓存。
-      只打包不装机：先 `python build_and_install.py`，再 `python build_pmod.py`。
+用法：python build_and_install.py            # 只编译（本 Mod 默认交付方式）
+      python build_and_install.py --install  # 编译 + 打包 + 装机 + 清解包缓存
+      只打包不装机：先跑本脚本编译，再 `python build_pmod.py`
 
 ⚠️ 多个 Agent 并行构建时请走 `python mods/_build_locked.py FiringPlantHighlight`（串行加锁），
    否则本脚本开头的 taskkill 会把别人的 dotnet 杀掉。

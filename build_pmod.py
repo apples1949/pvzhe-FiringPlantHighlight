@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """打包 FiringPlantHighlight.pmod（zip + 根 mod.json）。
 
-硬护栏（照抄 ShovelPosition/build_pmod.py，照技能文档）：
+硬护栏（照抄 ShovelPosition / Glove 的 build_pmod.py，照技能文档）：
   · mod.json 必须在【根】且【唯一】（第 0 个条目）
   · Runtime/ 下只允许 ModAssembly.dll（多一个可执行文件 → 整包被拒）
   · resources 列表必须与实际包内文件一致
@@ -65,7 +65,7 @@ def main():
         print("Runtime/ 下有非法文件（会被整包拒收）:", bad)
         return 2
 
-    # Resources/*.png（可选）
+    # Resources/*.png（可选，本 Mod 没有）
     res_dir = os.path.join(BASE, "Resources")
     art = []
     if os.path.isdir(res_dir):
