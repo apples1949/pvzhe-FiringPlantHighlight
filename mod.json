@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "id": "firingplanthighlight",
+  "name": "发射位高亮",
+  "version": "1.0.0",
+  "author": "apples1949",
+  "description": "选择发射位置时，场上所有「有发射职能」的植物（加农炮 / 毁灭磁力菇 / 玉米炮 …）持续闪光，一眼看清哪些植物在等你下指令；选好发射位或取消后立刻恢复原样，不残留、不抢别的闪烁效果。",
+  "playInstructions": "1. 进任意有加农炮类植物（含毁灭磁力菇等「含发射职能」植物）的关卡，种下若干株。\n2. 点其中一株进入「选择发射位置」状态：场上所有这类植物立刻开始持续闪光。\n3. 点击地面目标格开火，或松手 / 点非地面格取消：闪光立即停止，植物恢复正常外观。\n4. 战斗中关掉「启用发射位高亮」开关，也会立刻清掉正在闪光的状态。",
+  "dependencies": [],
+  "conflicts": [],
+  "provides": {},
+  "overrides": {},
+  "scripts": [],
+  "settings": [
+    {
+      "key": "enabled",
+      "type": "bool",
+      "label": "启用发射位高亮",
+      "group": "功能",
+      "description": "开（默认）= 选择发射位置时，有发射职能的植物持续闪光。关 = 完全不动，植物保持游戏原生外观。",
+      "applyMode": "immediate",
+      "affectsGameplay": false,
+      "default": true
+    },
+    {
+      "key": "enableLog",
+      "type": "bool",
+      "label": "输出诊断日志",
+      "group": "诊断",
+      "description": "排查问题时打开，会把进入/退出选择态、闪光对象数量写进 godot.log。平时关掉，不刷日志。",
+      "applyMode": "immediate",
+      "affectsGameplay": false,
+      "default": false
+    }
+  ],
+  "runtimeAssembly": "Runtime/ModAssembly.dll",
+  "runtimeEntryType": "FiringPlantHighlightEntry",
+  "runtimeApiVersion": 3,
+  "runtimeAssemblyPolicy": "optional",
+  "blueprints": [],
+  "translations": [],
+  "resources": [
+    "Runtime/ModAssembly.dll"
+  ]
+}
