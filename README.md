@@ -1,14 +1,14 @@
 # 发射位高亮（FiringPlantHighlight）
 
-> Mod ID：`firingplanthighlight` · 版本：**1.0.0** · 作者：apples1949
+> Mod ID：`firingplanthighlight` · 版本：**1.0.2** · 作者：apples1949
 > 适用基线：**0.33.0.0**（0.33 解包源码 + `data_PlantsVsZombies_windows_x86_64` 编译引用）
 > 产物：`dist/FiringPlantHighlight.pmod`（schemaVersion 2 / runtimeApiVersion 3）
 
 ## 它做什么
 
-加农炮类植物「点开 → 选发射位置」的时候，**场上所有同类植物一起持续闪光**，一眼就能看出
-还有哪几株在待命、哪一株正在瞄准；**设好发射位 / 右键取消 / 植物死亡 / 退出战斗后立刻恢复原样**，
-绝不残留。
+加农炮类植物「点开 → 选发射位置」的时候，**场上所有同类植物一起持续闪「深红色的光」**
+（颜色可在配置里改，默认 `#8B0000` 深红），一眼就能看出还有哪几株在待命、哪一株正在瞄准；
+**设好发射位 / 右键取消 / 植物死亡 / 退出战斗后立刻恢复原样**，亮度与颜色都归零，绝不残留染色。
 
 覆盖的植物（判据来自游戏自身组件配置，不是手写白名单）：
 
@@ -38,6 +38,9 @@
    - 效果：闪烁 / 常亮（默认闪烁）
    - 闪烁频率（1~8 次/秒，默认 3）
    - 亮度上限（5%~50%，默认 50%；50% 就是游戏原生上限）
+   - **闪光颜色**（默认 `#8B0000` 深红；改成纯白就是游戏原生的「悬停变亮」那种白光）
+     - 即时生效：改完立刻换色，不用重启、不用重新进选发射位
+     - A（不透明度）当光强比例：1 = 满强度，0.4 = 40% 强度
    - 输出诊断日志（默认关）
 
 ## 实现要点（为什么安全）
@@ -45,12 +48,25 @@
 - **状态判据只认宿主自己的字段**：`MousePressComponent.IsPressed`（`ToggleMode` 植物按下去 = 正在
   选发射位）。选好（`FinishAim`）/ 右键取消（`CancelAim`）/ 植物死亡（`OnAliveChanged`）/ 组件卸载
   （`OnDetaching`）宿主都会把它清成 `false` ⇒ 我们不需要自己枚举取消路径，也就不会「漏取消」。
-- **闪光复用游戏自己的高亮通道**：`TowerDefenseCharacter.SetSpriteGroupShaderParameter("brightStrength", v)`
-  —— 和「鼠标悬停植物变亮」是**同一个**公开方法、同一个参数（悬停值 0.3、铲子目标高亮 0.5）。
+- **色光复用宿主自己的渲染色通道**：`AdobeAnimateSprite.SetRenderColorMultiplier(Color)`（0.33 源码
+  `addons/AdobeAnimateEditor/Node/AdobeAnimateSprite.cs:2605`，public）。这正是宿主实现
+  「鼠标悬停变亮 / 受击闪白」的同一个函数（`ShaderEffectComponent.cs:504-516` 里
+  `SetRenderColorMultiplier(new Color(1+n,1+n,1+n))`），我们只是把纯白系数换成本 Mod 算出的**带色**系数。
   不新增贴图、不加 Node、不写 shader、不改材质文件、不改任何判定与数值。
-- **不碰 `blink` 通道**：那个是「咖啡豆」Buff 的闪烁位，我们清零会误关玩家的咖啡豆效果。
-- **退出即复原**：每帧比对，不需要闪光的那一帧立刻写回 0；`Shutdown` 里先复原再拆连接；
-  离开战斗（`TowerDefenseManager.IsGameRunning()` 为假）无条件复原。
+  - 0.33 的角色 shader（`ShaderTowerDefenseCharacter.gdshader`）**没有可 per-instance 写的颜色 uniform**：
+    `brightStrength`(L8)/`whiteStrength`(L9) 只有亮度，染色是 `effectFlags` 位预置色（L2-6/L17-26），
+    唯一的 `vec4 modulate`(L43) 是**材质级** uniform，写它会把所有角色一起染色。
+  - 颜色公式：`m_c = 1 + 强度·k·(2·fc_c/max(fc) − 1)`，`k = max(fc)`。
+    白色 ⇒ `(1+b,1+b,1+b)`，与 v1.0.1 的 `brightStrength` **逐值等价**；
+    深红 `#8B0000` ⇒ 峰值 `(1.27, 0.73, 0.73)`（红提亮、绿蓝压暗）= 深红色的光。
+    颜色极暗/接近中性导致幅度看不见时，自动退化成纯亮度闪。
+- **不碰别的染色**：咖啡豆 `blink`（effectFlags 位 256）本 Mod 从不清零；模仿者灰化是
+  `SetRenderGrayscale`（与颜色乘算两个独立字段）也不碰；冰霜/魅惑/红热/中毒/灰烬/全息这些
+  「游戏自己上的色」在**进入前**就用 `ShaderEffectComponent.GetEffectFlags()` 检测并**跳过该株**。
+- **退出只复原自己动过的**：逐株调宿主自己的 `ShaderEffectComponent.RefreshShaderNodes()`
+  （`ShaderEffectComponent.cs:192-250`，public）按它当前真实状态重算亮度/灰化 —— 悬停变亮、
+  受击闪白都能原样回来；组件已释放时兜底写回 `Colors.White`（宿主自己的「无色」）。
+  另有每帧兜底：不需要闪的那一帧、植物死亡、被移除、关总开关、离开战斗都立刻复原。
 - 不写存档、不改配置结构、不联网、不监听按键。
 
 ## 已知限制 / 未验证项
@@ -59,8 +75,10 @@
 - 若玩家在「瞄准中」直接点选卡栏拿卡，游戏自己会保留瞄准态（0.33 新增
   `TowerDefenseManager.IsPointerInPacketBankArea` 的提前 return），本 Mod 与游戏保持一致：
   继续闪，直到游戏自己把 `IsPressed` 清掉。这是「跟随宿主状态」的取舍，不是残留。
-- 与「受击闪白」共用 `brightStrength` 通道：植物正在闪光时被打，闪白会被我们的亮度覆盖到下一帧，
-  属于视觉优先级问题（两者都是「变亮」，不会出现异常颜色）。
+- 与「受击闪白 / 悬停变亮」共用同一条渲染色通道：植物正在闪色光时被打或被鼠标悬停，那一两帧会显示
+  宿主的白闪/白亮（宿主的写入覆盖我们），之后自动回到色光；属于视觉优先级问题，不会出现错误颜色。
+- 受「进入前已被游戏染色就跳过」这条安全规则影响：正在冰霜/魅惑/中毒/模仿者灰化/灰烬状态下的植物
+  **不会**被染上色光（避免把游戏自己的颜色压掉）。
 - 网络对局：只改本机渲染，不同步、不影响判定；非房主也能看到自己的高亮。
 
 ## 验证状态（本轮）
@@ -69,14 +87,14 @@
 |---|---|
 | 编译 `python mods/_build_locked.py FiringPlantHighlight` | **RC=0**，0 warning / 0 error |
 | `verify_pmod.py dist/FiringPlantHighlight.pmod` | **FAIL=0**（ok=9, warn=0） |
-| DLL 特征串 | `FiringPlantHighlight` / `brightStrength` / `SetSpriteGroupShaderParameter` / `MousePressComponent` / `ToggleMode` / `IsPressed` 全部命中 |
+| DLL 特征串 | `color` / `#8B0000` / `renderColorMultiplier` / `v1.0.2` / `闪光颜色=` / `SetRenderColorMultiplier` / `RefreshShaderNodes` / `MousePressComponent` / `ToggleMode` / `IsPressed` 全部命中；`brightStrength` 已不再出现（不再占用宿主亮度别名） |
 | 实机功能 | **未验证**（不启动游戏） |
 
 ## 目录
 
 ```
 mods/FiringPlantHighlight/
-├─ mod.json                              # schemaVersion 2 / id firingplanthighlight / v1.0.0
+├─ mod.json                              # schemaVersion 2 / id firingplanthighlight / v1.0.2
 ├─ runtime_src/FiringPlantHighlightEntry.cs
 ├─ runtime_src/FiringPlantHighlight.csproj
 ├─ build_and_install.py                  # 只编译（--install 才打包装机）
